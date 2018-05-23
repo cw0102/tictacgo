@@ -67,3 +67,12 @@ func (r *room) leaveSlot(client *webClient) error {
 
 	return errors.New("Member not in a slot")
 }
+
+func (r *room) sendChatMessage(client *webClient, message string) error {
+	for member := range r.members {
+		if member != client {
+			member.sendToClient(commandStrChat, []string{client.name, message})
+		}
+	}
+	return nil
+}

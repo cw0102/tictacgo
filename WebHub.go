@@ -61,13 +61,15 @@ func (h *webHub) run() {
 }
 
 func handleCommand(cb commandBinding) {
+	log.Println("Received: [", string(cb.data), "]")
 	cmd, params := getCommandResponse(cb)
+	log.Println("Sent: [", cmd, ":", strings.Join(params, ":"), "]")
 	cb.client.sendToClient(cmd, params)
 }
 
 func getCommandResponse(cb commandBinding) (string, []string) {
 	command := strings.Split(string(cb.data), ":")
-	if len(command) < 2 {
+	if len(command) < 1 {
 		err := fmt.Sprintf("error: Invalid command length: %v\n", command)
 		log.Println(err)
 		return commandStrError, []string{err}
@@ -95,15 +97,15 @@ func getCommandResponse(cb commandBinding) (string, []string) {
 }
 
 func parseCommandMakeRoom(client *webClient, command []string) (string, []string) {
-	//Format: [MKRM:]
+	//Format: [MKRM]
 	//Sends:
 	// on success: [MKRM:<new room id>]
-	// on failure: [MKRM:0]
+	// on failure: [ERRO:MKRM:<error_msg>]
 	roomID, err := client.hub.createRoom(client)
 	if err != nil {
-		return commandStrError, []string{commandStrMakeRoom}
+		return commandStrError, []string{commandStrMakeRoom, err.Error()}
 	}
-	return commandStrMakeRoom, []string{string(roomID)}
+	return commandStrMakeRoom, []string{strconv.Itoa(roomID)}
 }
 
 func parseCommandJoinRoom(client *webClient, command []string) (string, []string) {
@@ -130,14 +132,14 @@ func parseCommandJoinRoom(client *webClient, command []string) (string, []string
 		log.Println(err)
 		return commandStrError, []string{commandStrJoinRoom, err.Error()}
 	}
-	return commandStrJoinRoom, []string{string(roomID)}
+	return commandStrJoinRoom, []string{strconv.Itoa(roomID)}
 }
 
 func parseCommandJoinSlot(client *webClient, command []string) (string, []string) {
 	//Format: [JNSL:<roomid>:<slotid>]
 	//Sends:
 	// on success: [JNSL:<roomid>:<slotid>]
-	// on failure: [ERRO:JNSL:<msg>]
+	// on failure: [ERRO:JNSL:<error_msg>]
 	if len(command) < 3 {
 		err := fmt.Sprintf("%s command too short", commandStrJoinSlot)
 		log.Println(err)
@@ -162,14 +164,14 @@ func parseCommandJoinSlot(client *webClient, command []string) (string, []string
 		log.Println(err)
 		return commandStrError, []string{commandStrJoinSlot, err.Error()}
 	}
-	return commandStrJoinSlot, []string{string(roomID), string(slotID)}
+	return commandStrJoinSlot, []string{strconv.Itoa(roomID), strconv.Itoa(slotID)}
 }
 
 func parseCommandLeaveRoom(client *webClient, command []string) (string, []string) {
 	//Format: [LEAV:<roomid>]
 	//Sends:
 	// on success: [LEAV:<roomid>]
-	// on failure: [ERRO:LEAV:<msg>]
+	// on failure: [ERRO:LEAV:<error_msg>]
 	if len(command) < 2 {
 		err := fmt.Sprintf("%s command too short", commandStrLeaveRoom)
 		log.Println(err)
@@ -189,14 +191,14 @@ func parseCommandLeaveRoom(client *webClient, command []string) (string, []strin
 		log.Println(err)
 		return commandStrError, []string{commandStrLeaveRoom, err.Error()}
 	}
-	return commandStrLeaveRoom, []string{string(roomID)}
+	return commandStrLeaveRoom, []string{strconv.Itoa(roomID)}
 }
 
 func parseCommandLeaveSlot(client *webClient, command []string) (string, []string) {
 	//Format: [LVSL:<roomid>]
 	//Sends:
 	// on success: [LVSL:<roomid>]
-	// on failure: [ERRO:LVSL:<msg>]
+	// on failure: [ERRO:LVSL:<error_msg>]
 	if len(command) < 2 {
 		err := fmt.Sprintf("%s command too short", commandStrLeaveSlot)
 		log.Println(err)
@@ -216,21 +218,21 @@ func parseCommandLeaveSlot(client *webClient, command []string) (string, []strin
 		log.Println(err)
 		return commandStrError, []string{commandStrLeaveSlot, err.Error()}
 	}
-	return commandStrLeaveSlot, []string{string(roomID)}
+	return commandStrLeaveSlot, []string{strconv.Itoa(roomID)}
 }
 
 func parseCommandPlay(client *webClient, command []string) (string, []string) {
 	//Format: [PLAY:<roomid>:<boardid>:<squareid>]
 	//Sends:
 	// on success: [PLAY:<roomid>:<boardid>:<squareid>] to all clients in room
-	// on failure [ERRO:PLAY:<msg>]
+	// on failure [ERRO:PLAY:<error_msg>]
 	return commandStrPlay, []string{"0", "0", "0"}
 }
 
 func parseCommandChat(client *webClient, command []string) (string, []string) {
 	//Format: [CHAT:<roomid>:<message>]
 	//Sends:
-	// on success: [CHAT:<userid>:<username>:<message>] to all clients in room
+	// on success: [CHAT:<username>:<message>] to all clients in room
 	// on failure: [ERRO:CHAT:Failed to send message]
 	roomID, roomIDErr := strconv.Atoi(command[1])
 	if roomIDErr != nil {
@@ -246,14 +248,14 @@ func parseCommandChat(client *webClient, command []string) (string, []string) {
 		log.Println(err)
 		return commandStrError, []string{commandStrChat, err.Error()}
 	}
-	return commandStrChat, []string{"0", "0", "0"}
+	return commandStrChat, []string{client.name, command[2]}
 }
 
 func (h *webHub) createRoom(client *webClient) (int, error) {
 	if h == nil || client == nil {
 		return 0, errors.New("Internal error in create room")
 	}
-	if _, ok := h.rooms[h.roomCount]; ok {
+	if _, ok := h.rooms[h.roomCount+1]; ok {
 		return 0, errors.New("Room already exists")
 	}
 	h.roomCount++

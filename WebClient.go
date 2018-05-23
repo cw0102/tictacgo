@@ -40,6 +40,7 @@ type webClient struct {
 	conn *websocket.Conn
 	send chan []byte
 	room *room
+	name string
 }
 
 func (c *webClient) readPump() {
@@ -110,7 +111,7 @@ func serveWs(hub *webHub, w http.ResponseWriter, r *http.Request) {
 		log.Println(err)
 		return
 	}
-	client := &webClient{hub: hub, conn: conn, send: make(chan []byte, 256)}
+	client := &webClient{hub: hub, conn: conn, send: make(chan []byte, 256), name: "Test"}
 	client.hub.register <- client
 
 	go client.writePump()
@@ -167,7 +168,7 @@ func (c *webClient) leaveRoomSlot(roomID int) error {
 
 func (c *webClient) sendChatMessage(roomID int, msg string) error {
 	if _, ok := c.hub.rooms[roomID]; ok {
-		if err := c.hub.rooms[roomID].sendChatMessage(c); err != nil {
+		if err := c.hub.rooms[roomID].sendChatMessage(c, msg); err != nil {
 			return err
 		}
 	} else {
