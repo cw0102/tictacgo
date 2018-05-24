@@ -11,7 +11,8 @@ class Box {
         if (x > this.x + this.padding
             && x < this.x + this.width - this.padding
             && y > this.y + this.padding
-            && y < this.y + this.height - this.padding) {
+            && y < this.y + this.height - this.padding
+        ) {
             return true;
         }
 
@@ -128,15 +129,29 @@ class TTTBoard extends Box {
         if (!this.containsPoint(x, y)) {
             return null;
         }
+
+        let path = Array();
         for (let i = 0; i < this.subGrid.length; i++) {
             for (let j = 0; j < this.subGrid[i].length; j++) {
-                if (this.subGrid[i][j].containsPoint(x, y)) {
-                    return [i, j];
+                if (this.subGrid[i][j].containsPoint(x,y)) {
+                    path.push([i, j]);
+                    if (this.sublevels > 0) {
+                        let cell = this.subGrid[i][j].getCell(x, y);
+                        if (cell != null) {
+                            path = path.concat(cell);
+                        } else {
+                            return null; // landed in padding of subgrid
+                        }
+                    }
                 }
             }
         }
-
-        return null;
+        
+        if (path.length > 0) {
+            return path;
+        } else {
+            return null;
+        } 
     }
 }
 
@@ -149,9 +164,12 @@ const kCommandStrPlay      = "PLAY";
 const kCommandStrChat      = "CHAT";
 const kCommandStrError     = "ERRO";
 
+const kSystemUserName = "[System]";
+
 class WsHandler {
     constructor(){
         let self = this;
+        this.roomID = -1;
         this.ws = new WebSocket("ws://" + location.hostname + (location.port ? ':' + location.port : '') + "/ws");
 
         this.ws.addEventListener('open', function(event) {
@@ -166,7 +184,15 @@ class WsHandler {
             let command = event.data.split(":");
             switch(command[0]) {
                 case kCommandStrMakeRoom:
-                    self.sendToServer(kCommandStrChat, command[1], "test1234");
+                    if (command.length === 2) {
+                        this.roomID = command[1];
+                        postToChatFrame(kSystemUserName, "Joined room " + command[1]);
+                    }
+                break;
+                case kCommandStrChat:
+                    if (command.length === 3) {
+                        postToChatFrame(command[1], command[2]);
+                    }
                 break;
             }
         });
@@ -176,43 +202,18 @@ class WsHandler {
 
     sendToServer(command, ...params) {
         let str = command;
-        params.forEach(_ => { str += ":" + _ });
+        params.forEach(p => { str += ":" + p });
         this.ws.send(str);
     }
+
+    sendChatMessage(message) {
+        if (this.roomID > -1) {
+            this.sendToServer(kCommandStrChat, this.roomID, message);
+        } else {
+            postToChatFrame(kSystemUserName, "You aren't in a room!");
+        }
+    }
 }
-
-document.addEventListener("DOMContentLoaded", function(event) {
-    let c = document.getElementById("main");
-    let ctx = c.getContext("2d");
-    const padding = 20;
-
-    let tttMeta = new TTTBoard(0, 0, c.width, c.height, padding, 1);
-
-    window.addEventListener("resize", () => {
-        renderTTT(ctx, tttMeta);
-    });
-
-    renderTTT(ctx, tttMeta);
-
-    let xo = true;
-    c.addEventListener('click', function(event) {
-        let count = 0;
-        tttMeta.subGrid.forEach(row => {
-            row.forEach(value => {
-                count++;
-                let cell = value.getCell(event.pageX, event.pageY);
-                if (cell != null) {
-                    let [col, row] = cell;
-                    value.state[col][row] = xo ? "X" : "O";
-                    xo = !xo;
-                    renderTTT(ctx, tttMeta, tttGrid);
-                }
-            });
-        });
-    });
-
-    let ws = new WsHandler();
-});
 
 function drawLine(ctx, start_x, start_y, end_x, end_y) {
     ctx.beginPath();
@@ -227,17 +228,81 @@ function renderTTT(ctx, tttMeta) {
     tttMeta.resize(c.width, c.height);
     ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
     tttMeta.draw(ctx, ["black", "slategrey"], [5, 1]);
-    //drawDebugBorders(ctx, tttGrid);
+    drawDebugBorders(ctx, tttMeta);
 }
 
 function drawDebugBorders(ctx, grid) {
-    for (let i = 0; i < grid.length; i++) {
-        for (let j = 0; j < grid[i].length; j++) {
-            for (let k = 0; k < grid[i][j].subGrid.length; k++) {
-                for (let l = 0; l < grid[i][j].subGrid[k].length; l++) {
-                    grid[i][j].subGrid[k][l].drawBorder(ctx);
-                }
-            }
-        }
+    if (grid.sublevels > 0) {
+        grid.subGrid.forEach(e => {
+            e.forEach(f => {
+                drawDebugBorders(ctx, f);
+            });
+        });
+    } else {
+        grid.subGrid.forEach(e => {
+            e.forEach(f => {
+                f.drawBorder(ctx);
+            });
+        });
     }
 }
+
+function postToChatFrame(user, msg) {
+    let chatFrame = document.getElementById("chat-display");
+    let newMessage = document.createElement("p");
+    newMessage.setAttribute("class", "message");
+    let newMessageUser = document.createElement("span");
+    newMessageUser.setAttribute("class", "username");
+    let newMessageUserText = document.createTextNode(user);
+    newMessageUser.appendChild(newMessageUserText);
+    newMessage.appendChild(newMessageUser);
+    let newMessageText = document.createTextNode(": " + msg);
+    newMessage.appendChild(newMessageText);
+    chatFrame.appendChild(newMessage);
+    chatFrame.scrollTop = chatFrame.scrollHeight;
+}
+
+document.addEventListener("DOMContentLoaded", function(event) {
+    let c = document.getElementById("main");
+    let ctx = c.getContext("2d");
+    const padding = 5;
+
+    let tttMeta = new TTTBoard(0, 0, c.width, c.height, padding, 1);
+
+    window.addEventListener("resize", () => {
+        renderTTT(ctx, tttMeta);
+    });
+
+    renderTTT(ctx, tttMeta);
+
+    let xo = true;
+    c.addEventListener('click', function(event) {
+        let cell = tttMeta.getCell(event.pageX, event.pageY);
+        if (cell != null && cell.length >= 1) {
+            let grid = tttMeta;
+            //drill to the 2nd lowest layer
+            for (let i = 0; i < cell.length-1; i++) {
+                let [col, row] = cell[i];
+                grid = tttMeta.subGrid[col][row];
+            }
+            let [col, row] = cell[cell.length - 1];
+            grid.state[col][row] = xo ? "X" : "O";
+            xo = !xo;
+            renderTTT(ctx, tttMeta);
+        }
+    });
+
+    let ws = new WsHandler();
+
+    let chatEntry = document.getElementById("chat-entry");
+    chatEntry.addEventListener("keypress", event => {
+        if (event.key === "Enter" && !event.shiftKey) {
+            event.preventDefault();
+            let textArea = event.currentTarget;
+            let chatText = textArea.value;
+            textArea.value = "";
+            chatText = chatText.replace(/\n$/, "");
+            ws.sendChatMessage(chatText);
+        }
+    });
+});

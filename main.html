@@ -1,22 +1,14 @@
 <html>
 <head>
     <title>&#x1f418;</title>
-    <style>
-        * { margin:0; padding:0; }
-        html, body { width:100%; height:100%; }
-        #canvasWrapper { height: 100%; margin: 0px; overflow: hidden; }
-        #textWrapper { 
-            height: 100%; 
-            width: 25%; 
-            margin: 0px; 
-            float: right;
-            border-left: 2px solid black;
-        }
-    </style>
+    <link rel="stylesheet" type="text/css" href="main.css">
 </head>
 <body>
-    <div id="textWrapper"></div>
-    <div id="canvasWrapper">
+    <div id="chat-wrapper">
+        <div id="chat-display"></div>
+        <textarea id="chat-entry"></textarea>
+    </div>
+    <div id="canvas-wrapper">
             <canvas id="main"></canvas>
     </div>
     <script src="tictac.js"></script>

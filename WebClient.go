@@ -36,11 +36,11 @@ var upgrader = websocket.Upgrader{
 }
 
 type webClient struct {
-	hub  *webHub
-	conn *websocket.Conn
-	send chan []byte
-	room *room
-	name string
+	hub   *webHub
+	conn  *websocket.Conn
+	send  chan []byte
+	rooms []*room
+	name  string
 }
 
 func (c *webClient) readPump() {

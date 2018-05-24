@@ -9,11 +9,6 @@ import (
 var addr = flag.String("addr", ":8080", "http service address")
 
 func serveHome(w http.ResponseWriter, r *http.Request) {
-	log.Println(r.URL)
-	if r.URL.Path != "/" && r.URL.Path != "/tictac.js" {
-		http.Error(w, "Not found", http.StatusNotFound)
-		return
-	}
 	if r.Method != "GET" {
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 		return
@@ -24,7 +19,19 @@ func serveHome(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	http.ServeFile(w, r, "main.html")
+	if r.URL.Path == "/main.css" {
+		w.Header()["Content-Type"] = []string{"text/css"}
+
+		http.ServeFile(w, r, "main.css")
+		return
+	}
+
+	if r.URL.Path == "/" {
+		http.ServeFile(w, r, "main.html")
+		return
+	}
+
+	http.Error(w, "Not found", http.StatusNotFound)
 }
 
 func main() {
@@ -33,6 +40,7 @@ func main() {
 	go hub.run()
 	http.HandleFunc("/", serveHome)
 	http.HandleFunc("/tictac.js", serveHome)
+	http.HandleFunc("/main.css", serveHome)
 	http.HandleFunc("/ws", func(w http.ResponseWriter, r *http.Request) {
 		serveWs(hub, w, r)
 	})

@@ -5,6 +5,7 @@ import (
 )
 
 type room struct {
+	id      int
 	members map[*webClient]struct{}
 	ticTac  *ticTacMetaBoard
 	players [2]*webClient
@@ -16,6 +17,7 @@ func (r *room) join(client *webClient) error {
 	}
 
 	r.members[client] = struct{}{}
+	client.rooms = append(client.rooms, r)
 
 	return nil
 }

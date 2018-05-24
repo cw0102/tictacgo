@@ -51,6 +51,12 @@ func (h *webHub) run() {
 			h.clients[client] = struct{}{}
 		case client := <-h.unregister:
 			if _, ok := h.clients[client]; ok {
+				for _, room := range client.rooms {
+					delete(room.members, client)
+					if len(room.members) == 0 {
+						delete(h.rooms, room.id)
+					}
+				}
 				delete(h.clients, client)
 				close(client.send)
 			}
@@ -61,9 +67,9 @@ func (h *webHub) run() {
 }
 
 func handleCommand(cb commandBinding) {
-	log.Println("Received: [", string(cb.data), "]")
+	log.Printf("Received: [%s]\n", string(cb.data))
 	cmd, params := getCommandResponse(cb)
-	log.Println("Sent: [", cmd, ":", strings.Join(params, ":"), "]")
+	log.Printf("Sent: [%s:%s]\n", cmd, strings.Join(params, ":"))
 	cb.client.sendToClient(cmd, params)
 }
 
@@ -259,6 +265,7 @@ func (h *webHub) createRoom(client *webClient) (int, error) {
 		return 0, errors.New("Room already exists")
 	}
 	h.roomCount++
-	h.rooms[h.roomCount] = &room{map[*webClient]struct{}{client: struct{}{}}, &ticTacMetaBoard{}, [2]*webClient{nil, nil}}
+	h.rooms[h.roomCount] = &room{h.roomCount, map[*webClient]struct{}{}, &ticTacMetaBoard{}, [2]*webClient{nil, nil}}
+	client.joinRoom(h.roomCount)
 	return h.roomCount, nil
 }
