@@ -166,18 +166,24 @@ const kCommandStrError     = "ERRO";
 
 const kSystemUserName = "[System]";
 
+const kHelpText = "\n/make\tCreate a Room | \
+/join <roomid>\tJoin an existing Room | \
+/leave\tLeave the current room";
+
 class WsHandler {
     constructor(){
-        let self = this;
         this.roomID = -1;
         this.ws = new WebSocket("ws://" + location.hostname + (location.port ? ':' + location.port : '') + "/ws");
 
-        this.ws.addEventListener('open', function(event) {
+        this.ws.addEventListener('open', event => { 
             console.log("open");
-            self.sendToServer(kCommandStrMakeRoom);
+            postToChatFrame(kSystemUserName, "Connected");
         });
 
-        this.ws.addEventListener("close", event => { console.log("close"); });
+        this.ws.addEventListener("close", event => { 
+            console.log("close"); 
+            postToChatFrame(kSystemUserName, "Lost connection");
+        });
 
         this.ws.addEventListener('message', event => { 
             console.log(event.data);
@@ -189,9 +195,24 @@ class WsHandler {
                         postToChatFrame(kSystemUserName, "Joined room " + command[1]);
                     }
                 break;
+
+                case kCommandStrJoinRoom:
+                    if (command.length === 2) {
+                        this.roomID = command[1];
+                        postToChatFrame(kSystemUserName, "Joined room " + command[1]);
+                    }
+
                 case kCommandStrChat:
+                    if (command.length === 4) {
+                        postToChatFrame(command[2], command[3]);
+                    }
+                break;
+
+                case kCommandStrError:
                     if (command.length === 3) {
-                        postToChatFrame(command[1], command[2]);
+                        postToChatFrame(kSystemUserName, command[2]);
+                    } else {
+                        postToChatFrame(kSystemUserName, "Unknown error occured");
                     }
                 break;
             }
@@ -207,10 +228,37 @@ class WsHandler {
     }
 
     sendChatMessage(message) {
-        if (this.roomID > -1) {
-            this.sendToServer(kCommandStrChat, this.roomID, message);
+        if (message.substr(0, 1) === "/") {
+            let command = message.slice(1).split(" ");
+            switch (command[0]) {
+                case "make":
+                    this.sendToServer(kCommandStrMakeRoom);
+                break;
+
+                case "join":
+                    if (command.length === 2) {
+                        this.sendToServer(kCommandStrJoinRoom, command[1]);
+                    }
+                break;
+
+                case "leave":
+                    this.sendToServer(kCommandStrLeaveRoom);
+                break;
+
+                case "help":
+                    postToChatFrame(kSystemUserName, kHelpText);
+                break;
+
+                default:
+                    postToChatFrame(kSystemUserName, "Invalid / Command. Type /help for help.");
+                break;
+            }
         } else {
-            postToChatFrame(kSystemUserName, "You aren't in a room!");
+            if (this.roomID > -1) {
+                this.sendToServer(kCommandStrChat, this.roomID, message);
+            } else {
+                postToChatFrame(kSystemUserName, "You aren't in a room");
+            }
         }
     }
 }

@@ -166,9 +166,9 @@ func (c *webClient) leaveRoomSlot(roomID int) error {
 	return nil
 }
 
-func (c *webClient) sendChatMessage(roomID int, msg string) error {
+func (c *webClient) sendChatMessage(roomID int, timestamp string, msg string) error {
 	if _, ok := c.hub.rooms[roomID]; ok {
-		if err := c.hub.rooms[roomID].sendChatMessage(c, msg); err != nil {
+		if err := c.hub.rooms[roomID].sendChatMessage(c, timestamp, msg); err != nil {
 			return err
 		}
 	} else {

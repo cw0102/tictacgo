@@ -6,6 +6,7 @@ import (
 	"log"
 	"strconv"
 	"strings"
+	"time"
 )
 
 const (
@@ -238,7 +239,7 @@ func parseCommandPlay(client *webClient, command []string) (string, []string) {
 func parseCommandChat(client *webClient, command []string) (string, []string) {
 	//Format: [CHAT:<roomid>:<message>]
 	//Sends:
-	// on success: [CHAT:<username>:<message>] to all clients in room
+	// on success: [CHAT:<timestamp>:<username>:<message>] to all clients in room
 	// on failure: [ERRO:CHAT:Failed to send message]
 	roomID, roomIDErr := strconv.Atoi(command[1])
 	if roomIDErr != nil {
@@ -250,11 +251,12 @@ func parseCommandChat(client *webClient, command []string) (string, []string) {
 		log.Println(err)
 		return commandStrError, []string{commandStrChat, err}
 	}
-	if err := client.sendChatMessage(roomID, command[2]); err != nil {
+	timestamp := strconv.FormatInt(time.Now().UnixNano()/1000000, 10) // Epoch timestamp in milliseconds
+	if err := client.sendChatMessage(roomID, timestamp, command[2]); err != nil {
 		log.Println(err)
 		return commandStrError, []string{commandStrChat, err.Error()}
 	}
-	return commandStrChat, []string{client.name, command[2]}
+	return commandStrChat, []string{client.name, timestamp, command[2]}
 }
 
 func (h *webHub) createRoom(client *webClient) (int, error) {
