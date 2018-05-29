@@ -39,7 +39,7 @@ type webClient struct {
 	hub   *webHub
 	conn  *websocket.Conn
 	send  chan []byte
-	rooms []*room
+	rooms map[*room]struct{}
 	name  string
 }
 
@@ -111,7 +111,7 @@ func serveWs(hub *webHub, w http.ResponseWriter, r *http.Request) {
 		log.Println(err)
 		return
 	}
-	client := &webClient{hub: hub, conn: conn, send: make(chan []byte, 256), name: "Test"}
+	client := &webClient{hub: hub, conn: conn, send: make(chan []byte, 256), rooms: make(map[*room]struct{}), name: "Test"}
 	client.hub.register <- client
 
 	go client.writePump()

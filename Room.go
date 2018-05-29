@@ -17,7 +17,7 @@ func (r *room) join(client *webClient) error {
 	}
 
 	r.members[client] = struct{}{}
-	client.rooms = append(client.rooms, r)
+	client.rooms[r] = struct{}{}
 
 	return nil
 }
@@ -27,6 +27,7 @@ func (r *room) leave(client *webClient) error {
 		return errors.New("Member not in room")
 	}
 
+	delete(client.rooms, r)
 	delete(r.members, client)
 	return nil
 }

@@ -1,17 +1,21 @@
 class Box {
-    constructor(x, y, width, height, padding=0){
+    constructor(x, y, width, height, padTop=0, padBot=0, padLeft=0, padRight=0){
         this.x = x;
         this.y = y;
         this.width = width;
         this.height = height;
-        this.padding = padding;
+
+        this.padTop = padTop;
+        this.padBot = padBot;
+        this.padLeft = padLeft;
+        this.padRight = padRight;
     }
 
     containsPoint(x, y) {
-        if (x > this.x + this.padding
-            && x < this.x + this.width - this.padding
-            && y > this.y + this.padding
-            && y < this.y + this.height - this.padding
+        if (x > this.x + this.padLeft
+            && x < this.x + this.width - this.padRight
+            && y > this.y + this.padTop
+            && y < this.y + this.height - this.padBot
         ) {
             return true;
         }
@@ -23,32 +27,53 @@ class Box {
         return [this.x + (this.width / 2), this.y + (this.height / 2)];
     }
 
-    drawBorder(ctx) {
+    drawBorder(ctx, padding) {
         let oldStyle = ctx.strokeStyle;
-        ctx.strokeStyle = "blue";
-        ctx.strokeRect(this.x + this.padding, 
-            this.y + this.padding, 
-            this.width - this.padding*2, 
-            this.height - this.padding*2);
+        if (padding) {
+            ctx.strokeStyle = "blue";
+            ctx.strokeRect(this.x + this.padLeft, 
+                this.y + this.padTop, 
+                this.width - this.padLeft - this.padRight, 
+                this.height - this.padBot - this.padTop);
+        } else {
+            ctx.strokeStyle = "red";
+            ctx.strokeRect(this.x, 
+                this.y, 
+                this.width, 
+                this.height);
+        }
         ctx.strokeStyle = oldStyle;
     }
 }
 
 class TTTBoard extends Box {
-    constructor(x, y, width, height, padding, sublevels, rows=3, cols=3) {
-        super(x, y, width, height, padding);
+    constructor(x, y, width, height, sublevels, padTop=0, padBot=0, padLeft=0, padRight=0, level=1, rows=3, cols=3) {
+        super(x, y, width, height, padTop, padBot, padLeft, padRight);
         this.rows = rows;
         this.cols = cols;
         this.sublevels = sublevels;
+        this.level = level;
 
         this.subGrid = Array(rows);
         for (let i = 0; i < rows; i++) {
             this.subGrid[i] = Array(cols);
             for (let j = 0; j < cols; j++) {
                 if (this.sublevels > 0) {
-                    this.subGrid[i][j] = new TTTBoard(0, 0, 0, 0, this.padding, this.sublevels-1, this.rows, this.cols);
+                    this.subGrid[i][j] = new TTTBoard(0, 0, 0, 0, 
+                        this.sublevels - 1,
+                        i == 0 ? this.padTop * level : this.padTop,
+                        i == rows - 1 ? this.padBot * level : this.padBot,
+                        j == 0 ? this.padLeft * level : this.padLeft,
+                        j == cols - 1 ? this.padRight * level : this.padRight,  
+                        this.level + 1,
+                        this.rows, 
+                        this.cols);
                 } else {
-                    this.subGrid[i][j] = new Box(0, 0, 0, 0, this.padding);
+                    this.subGrid[i][j] = new Box(0, 0, 0, 0, 
+                        i == 0 ? this.padTop * level : this.padTop,
+                        i == rows - 1 ? this.padBot * level : this.padBot,
+                        j == 0 ? this.padLeft * level : this.padLeft,
+                        j == cols - 1 ? this.padRight * level : this.padRight);
                 }
             }
         }
@@ -96,9 +121,8 @@ class TTTBoard extends Box {
             width = this.width, 
             height = this.height;
 
-
-        x += this.padding; y +=this.padding; 
-        height -= this.padding*2; width -= this.padding*2;
+        x += this.padLeft; y +=this.padTop; 
+        height -= (this.padBot + this.padTop); width -= (this.padLeft + this.padRight);
         drawLine(ctx, x + (width / 3), y, x + (width / 3), y + height);
         drawLine(ctx, x + (width*2 / 3), y, x + (width*2 / 3), y + height);
         drawLine(ctx, x, y + (height / 3), x + width, y + (height / 3));
@@ -208,6 +232,13 @@ class WsHandler {
                     }
                 break;
 
+                case kCommandStrLeaveRoom:
+                    if (command.length === 2) {
+                        postToChatFrame(kSystemUserName, "Left room " + this.roomID);
+                        this.roomID = 0;
+                    }
+                break;
+
                 case kCommandStrError:
                     if (command.length === 3) {
                         postToChatFrame(kSystemUserName, command[2]);
@@ -242,7 +273,7 @@ class WsHandler {
                 break;
 
                 case "leave":
-                    this.sendToServer(kCommandStrLeaveRoom);
+                    this.sendToServer(kCommandStrLeaveRoom, this.roomID);
                 break;
 
                 case "help":
@@ -276,20 +307,21 @@ function renderTTT(ctx, tttMeta) {
     tttMeta.resize(c.width, c.height);
     ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
     tttMeta.draw(ctx, ["black", "slategrey"], [5, 1]);
-    drawDebugBorders(ctx, tttMeta);
+    drawDebugBorders(ctx, tttMeta, true);
+    drawDebugBorders(ctx, tttMeta, false);
 }
 
-function drawDebugBorders(ctx, grid) {
+function drawDebugBorders(ctx, grid, padding) {
     if (grid.sublevels > 0) {
         grid.subGrid.forEach(e => {
             e.forEach(f => {
-                drawDebugBorders(ctx, f);
+                drawDebugBorders(ctx, f, padding);
             });
         });
     } else {
         grid.subGrid.forEach(e => {
             e.forEach(f => {
-                f.drawBorder(ctx);
+                f.drawBorder(ctx, padding);
             });
         });
     }
@@ -315,7 +347,7 @@ document.addEventListener("DOMContentLoaded", function(event) {
     let ctx = c.getContext("2d");
     const padding = 5;
 
-    let tttMeta = new TTTBoard(0, 0, c.width, c.height, padding, 1);
+    let tttMeta = new TTTBoard(0, 0, c.width, c.height, 1, padding, padding, padding, padding);
 
     window.addEventListener("resize", () => {
         renderTTT(ctx, tttMeta);

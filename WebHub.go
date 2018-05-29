@@ -20,6 +20,8 @@ const (
 	commandStrError     = "ERRO"
 )
 
+const clientMaxRooms = 50
+
 type webHub struct {
 	clients    map[*webClient]struct{}
 	register   chan *webClient
@@ -52,7 +54,7 @@ func (h *webHub) run() {
 			h.clients[client] = struct{}{}
 		case client := <-h.unregister:
 			if _, ok := h.clients[client]; ok {
-				for _, room := range client.rooms {
+				for room := range client.rooms {
 					delete(room.members, client)
 					if len(room.members) == 0 {
 						delete(h.rooms, room.id)
@@ -256,7 +258,7 @@ func parseCommandChat(client *webClient, command []string) (string, []string) {
 		log.Println(err)
 		return commandStrError, []string{commandStrChat, err.Error()}
 	}
-	return commandStrChat, []string{client.name, timestamp, command[2]}
+	return commandStrChat, []string{timestamp, client.name, command[2]}
 }
 
 func (h *webHub) createRoom(client *webClient) (int, error) {
@@ -265,6 +267,9 @@ func (h *webHub) createRoom(client *webClient) (int, error) {
 	}
 	if _, ok := h.rooms[h.roomCount+1]; ok {
 		return 0, errors.New("Room already exists")
+	}
+	if len(client.rooms) > clientMaxRooms {
+		return 0, errors.New("Connected to too many rooms")
 	}
 	h.roomCount++
 	h.rooms[h.roomCount] = &room{h.roomCount, map[*webClient]struct{}{}, &ticTacMetaBoard{}, [2]*webClient{nil, nil}}
