@@ -181,11 +181,11 @@ func (c *webClient) sendChatMessage(roomID int, timestamp string, msg string) er
 func (c *webClient) sendToClient(command string, params []string) {
 	var clientString strings.Builder
 	clientString.WriteString(command)
-	clientString.WriteString(":")
+	clientString.WriteString(commandDelimiter)
 	for i, p := range params {
 		clientString.WriteString(p)
 		if i < len(params)-1 {
-			clientString.WriteString(":")
+			clientString.WriteString(commandDelimiter)
 		}
 	}
 	c.send <- []byte(clientString.String())

@@ -31,8 +31,10 @@ html, body {
 
 #chat-display {
     margin: 0px;
-    height: 85%;
-    overflow: auto;
+    height: 85%; 
+    overflow-y: auto;
+    overflow-x: hidden;
+    word-break: break-word;
 }
 
 #chat-entry {

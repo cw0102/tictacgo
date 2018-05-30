@@ -7,8 +7,6 @@ import (
 	"strconv"
 	"strings"
 	"time"
-
-	"gochat/util"
 )
 
 const (
@@ -23,7 +21,10 @@ const (
 	commandStrState     = "STAT"
 )
 
-const clientMaxRooms = 50
+const (
+	clientMaxRooms   = 50
+	commandDelimiter = string(0x1E)
+)
 
 type webHub struct {
 	clients    map[*webClient]struct{}
@@ -75,12 +76,12 @@ func (h *webHub) run() {
 func handleCommand(cb commandBinding) {
 	log.Printf("Received: [%s]\n", string(cb.data))
 	cmd, params := getCommandResponse(cb)
-	log.Printf("Sent: [%s:%s]\n", cmd, strings.Join(params, ":"))
+	log.Printf("Sent: [%s:%s]\n", cmd, strings.Join(params, commandDelimiter))
 	cb.client.sendToClient(cmd, params)
 }
 
 func getCommandResponse(cb commandBinding) (string, []string) {
-	command := util.SplitWithEscape(string(cb.data), ':', '\\', true)
+	command := strings.Split(string(cb.data), commandDelimiter)
 
 	if len(command) < 1 {
 		err := fmt.Sprintf("error: Invalid command length: %v\n", command)
