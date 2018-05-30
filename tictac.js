@@ -47,7 +47,7 @@ class Box {
 }
 
 class TTTBoard extends Box {
-    constructor(x, y, width, height, sublevels, padTop=0, padBot=0, padLeft=0, padRight=0, level=1, rows=3, cols=3) {
+    constructor(x, y, width, height, sublevels, padTop=0, padBot=0, padLeft=0, padRight=0, rows=3, cols=3, level=1) {
         super(x, y, width, height, padTop, padBot, padLeft, padRight);
         this.rows = rows;
         this.cols = cols;
@@ -65,9 +65,9 @@ class TTTBoard extends Box {
                         i == rows - 1 ? this.padBot * level : this.padBot,
                         j == 0 ? this.padLeft * level : this.padLeft,
                         j == cols - 1 ? this.padRight * level : this.padRight,  
-                        this.level + 1,
                         this.rows, 
-                        this.cols);
+                        this.cols,
+                        this.level + 1);
                 } else {
                     this.subGrid[i][j] = new Box(0, 0, 0, 0, 
                         i == 0 ? this.padTop * level : this.padTop,
@@ -179,6 +179,8 @@ class TTTBoard extends Box {
     }
 }
 
+const kCommandDelimeter = ":";
+
 const kCommandStrMakeRoom  = "MKRM";
 const kCommandStrJoinRoom  = "JOIN";
 const kCommandStrJoinSlot  = "JNSL";
@@ -211,7 +213,7 @@ class WsHandler {
 
         this.ws.addEventListener('message', event => { 
             console.log(event.data);
-            let command = event.data.split(":");
+            let command = splitWithEscape(event.data, kCommandDelimeter, "\\", false);
             switch(command[0]) {
                 case kCommandStrMakeRoom:
                     if (command.length === 2) {
@@ -254,7 +256,7 @@ class WsHandler {
 
     sendToServer(command, ...params) {
         let str = command;
-        params.forEach(p => { str += ":" + p });
+        params.forEach(p => { str += kCommandDelimeter + p });
         this.ws.send(str);
     }
 
@@ -342,6 +344,55 @@ function postToChatFrame(user, msg) {
     chatFrame.scrollTop = chatFrame.scrollHeight;
 }
 
+function splitWithEscape(s, delim, escape, keepEscape) {
+    let current = "";
+    let lastWasEsc = false;
+    let out = Array();
+    for (let char of s) {
+        if (lastWasEsc) {
+            current += char;
+            lastWasEsc = false;
+            continue;
+        }
+        if (char === delim) {
+            out.push(current);
+            current = "";
+        } else if (char === escape) {
+            if (keepEscape) {
+                current += char;
+            }
+            lastWasEsc = true;
+        } else {
+            current += char;
+        }
+    }
+
+    out.push(current);
+    return out;
+}
+
+function escapeString(s, escapedChars, escape) {
+    // Escape special RegEx characters from the RegExp, then replace instances
+    // of `escape` with `escape``escape`, e.g. (escape='\') \ -> \\
+    s = s.replace(RegExp(escape.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&'), 'g'), escape+escape);
+    for (let escChar of escapedChars) {
+        // Escape special RegEx characters from the RegExp, then replace instances
+        // of `escChar` with `escape``escChar`, e.g. (escChar=':',escape='\') : -> \:
+        let reg = RegExp(escChar.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&'), 'g');
+        s = s.replace(reg, escape+escChar);
+    }
+    return s;
+}
+
+function sanitizeText(s) {
+    // Remove leading/trailing newlines
+    s = s.replace(/^\n+/, "");
+    s = s.replace(/\n+$/, "");
+    // Remove excessive newlines
+    s = s.replace(/\n\n+/g, "\n");
+    return s;
+}
+
 document.addEventListener("DOMContentLoaded", function(event) {
     let c = document.getElementById("main");
     let ctx = c.getContext("2d");
@@ -381,7 +432,8 @@ document.addEventListener("DOMContentLoaded", function(event) {
             let textArea = event.currentTarget;
             let chatText = textArea.value;
             textArea.value = "";
-            chatText = chatText.replace(/\n$/, "");
+            chatText = sanitizeText(chatText);
+            chatText = escapeString(chatText, [kCommandDelimeter], "\\");
             ws.sendChatMessage(chatText);
         }
     });
