@@ -163,13 +163,10 @@ func parseCommandJoinSlot(client *webClient, command []string) (string, []string
 
 	roomID, err := strconv.Atoi(command[1])
 	if err != nil {
-		log.Println(err)
-		return commandStrError, []string{commandStrJoinSlot, err.Error()}
+		return commandError(commandStrJoinSlot, err.Error())
 	}
 	if roomID == 0 {
-		err := "Invalid room ID"
-		log.Println(err)
-		return commandStrError, []string{commandStrJoinSlot, err}
+		return commandError(commandStrJoinSlot, "Invalid room ID")
 	}
 
 	slotID := -1
@@ -197,13 +194,10 @@ func parseCommandLeaveRoom(client *webClient, command []string) (string, []strin
 
 	roomID, roomIDErr := strconv.Atoi(command[1])
 	if roomIDErr != nil {
-		log.Println(roomIDErr)
-		return commandStrError, []string{commandStrLeaveRoom, roomIDErr.Error()}
+		return commandError(commandStrLeaveRoom, roomIDErr.Error())
 	}
 	if roomID == 0 {
-		err := "Invalid room ID"
-		log.Println(err)
-		return commandStrError, []string{commandStrLeaveRoom, err}
+		return commandError(commandStrLeaveRoom, "Invalid room ID")
 	}
 
 	if _, ok := client.hub.rooms[roomID]; ok {
@@ -228,13 +222,10 @@ func parseCommandLeaveSlot(client *webClient, command []string) (string, []strin
 
 	roomID, roomIDErr := strconv.Atoi(command[1])
 	if roomIDErr != nil {
-		log.Println(roomIDErr)
-		return commandStrError, []string{commandStrLeaveSlot, roomIDErr.Error()}
+		return commandError(commandStrLeaveSlot, roomIDErr.Error())
 	}
 	if roomID == 0 {
-		err := "Invalid room ID"
-		log.Println(err)
-		return commandStrError, []string{commandStrLeaveSlot, err}
+		return commandError(commandStrLeaveSlot, "Invalid room ID")
 	}
 
 	if _, ok := client.hub.rooms[roomID]; ok {
@@ -271,19 +262,15 @@ func parseCommandChat(client *webClient, command []string) (string, []string) {
 
 	roomID, roomIDErr := strconv.Atoi(command[1])
 	if roomIDErr != nil {
-		log.Println(roomIDErr)
-		return commandStrError, []string{commandStrChat, roomIDErr.Error()}
+		return commandError(commandStrChat, roomIDErr.Error())
 	}
 	if roomID == 0 {
-		err := "Invalid room ID"
-		log.Println(err)
-		return commandStrError, []string{commandStrChat, err}
+		return commandError(commandStrChat, "Invalid room ID")
 	}
 
 	timestamp := strconv.FormatInt(time.Now().UnixNano()/1000000, 10) // Epoch timestamp in milliseconds
 	if err := client.sendChatMessage(roomID, timestamp, command[2]); err != nil {
-		log.Println(err)
-		return commandStrError, []string{commandStrChat, err.Error()}
+		return commandError(commandStrChat, err.Error())
 	}
 	return commandStrChat, []string{timestamp, client.name, command[2]}
 }
@@ -302,8 +289,7 @@ func parseCommandState(client *webClient, command []string) (string, []string) {
 
 func malformedCommand(command string) (string, []string) {
 	err := fmt.Sprintf("%s command malformed", command)
-	log.Println(err)
-	return commandStrError, []string{command, err}
+	return commandError(command, err)
 }
 
 func commandError(command, message string) (string, []string) {
