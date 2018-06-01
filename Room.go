@@ -7,7 +7,7 @@ import (
 type room struct {
 	id      int
 	members map[*webClient]struct{}
-	ticTac  *ticTacMetaBoard
+	board  *ticTacMetaBoard
 	players [2]*webClient
 }
 

@@ -22,7 +22,7 @@ const (
 )
 
 const (
-	clientMaxRooms   = 50
+	clientMaxRooms   = 20
 	commandDelimiter = string(0x1E)
 )
 
@@ -108,8 +108,8 @@ func getCommandResponse(cb commandBinding) (string, []string) {
 		return parseCommandState(cb.client, command)
 	default: // Unknown Command
 		// Format: ????
-		// Sends: [ERRO:Socket Format Error]
-		return commandStrError, []string{"Socket Format Error"}
+		// Sends: [ERRO:ERRO:Socket Format Error]
+		return commandError(commandStrError, "Socket Format Error")
 	}
 }
 
@@ -268,7 +268,8 @@ func parseCommandChat(client *webClient, command []string) (string, []string) {
 		return commandError(commandStrChat, "Invalid room ID")
 	}
 
-	timestamp := strconv.FormatInt(time.Now().UnixNano()/1000000, 10) // Epoch timestamp in milliseconds
+	// Epoch timestamp in milliseconds
+	timestamp := strconv.FormatInt(time.Now().UnixNano()/1000000, 10)
 	if err := client.sendChatMessage(roomID, timestamp, command[2]); err != nil {
 		return commandError(commandStrChat, err.Error())
 	}
