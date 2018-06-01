@@ -76,7 +76,7 @@ func (h *webHub) run() {
 func handleCommand(cb commandBinding) {
 	log.Printf("Received: [%s]\n", string(cb.data))
 	cmd, params := getCommandResponse(cb)
-	log.Printf("Sent: [%s:%s]\n", cmd, strings.Join(params, commandDelimiter))
+	log.Printf("Sent: [%s%s%s]\n", cmd, commandDelimiter, strings.Join(params, commandDelimiter))
 	cb.client.sendToClient(cmd, params)
 }
 
@@ -153,11 +153,11 @@ func parseCommandJoinRoom(client *webClient, command []string) (string, []string
 }
 
 func parseCommandJoinSlot(client *webClient, command []string) (string, []string) {
-	// Format: [JNSL:<room_id>:<slotid>]
+	// Format: [JNSL:<room_id>]
 	// Sends:
 	// on success: [JNSL:<room_id>:<slotid>]
 	// on failure: [ERRO:JNSL:<error_msg>]
-	if len(command) != 3 {
+	if len(command) != 2 {
 		return malformedCommand(commandStrJoinSlot)
 	}
 	roomID, err := strconv.Atoi(command[1])
@@ -170,12 +170,8 @@ func parseCommandJoinSlot(client *webClient, command []string) (string, []string
 		log.Println(err)
 		return commandStrError, []string{commandStrJoinSlot, err}
 	}
-	slotID, err := strconv.Atoi(command[2])
+	slotID, err := client.joinRoomSlot(roomID)
 	if err != nil {
-		log.Println(err)
-		return commandStrError, []string{commandStrJoinSlot, err.Error()}
-	}
-	if err := client.joinRoomSlot(roomID, slotID); err != nil {
 		log.Println(err)
 		return commandStrError, []string{commandStrJoinSlot, err.Error()}
 	}

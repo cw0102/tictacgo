@@ -179,6 +179,22 @@ class TTTBoard extends Box {
             return null;
         } 
     }
+
+    drawDebugBorders(ctx, padding) {
+        if (this.sublevels > 0) {
+            this.subGrid.forEach(e => {
+                e.forEach(f => {
+                    f.drawDebugBorders(ctx, padding);
+                });
+            });
+        } else {
+            this.subGrid.forEach(e => {
+                e.forEach(f => {
+                    f.drawBorder(ctx, padding);
+                });
+            });
+        }
+    }
 }
 
 const kCommandDelimeter = String.fromCharCode(0x1E);
@@ -196,7 +212,8 @@ const kSystemUserName = "[System]";
 
 const kHelpText = "\n/make\tCreate a Room | "
 + "/join <roomid>\tJoin an existing Room | "
-+ "/leave\tLeave the current room";
++ "/leave\tLeave the current room | " 
++ "/sit\tTake a slot in the current room";
 
 class WsHandler {
     constructor(){
@@ -229,10 +246,11 @@ class WsHandler {
                         this.roomID = command[1];
                         postToChatFrame(kSystemUserName, "Joined room " + command[1]);
                     }
+                break;
 
-                case kCommandStrChat:
-                    if (command.length === 4) {
-                        postToChatFrame(command[2], command[3]);
+                case kCommandStrJoinSlot:
+                    if (command.length === 3) {
+                        postToChatFrame(kSystemUserName, "Joined slot " + command[2] + " in room " + command[1]);
                     }
                 break;
 
@@ -240,6 +258,18 @@ class WsHandler {
                     if (command.length === 2) {
                         postToChatFrame(kSystemUserName, "Left room " + this.roomID);
                         this.roomID = 0;
+                    }
+                break;
+
+                case kCommandStrLeaveSlot:
+                    if (command.length === 2) {
+                        postToChatFrame(kSystemUserName, "Left your slot in room " + command[1]);
+                    }
+                break;
+
+                case kCommandStrChat:
+                    if (command.length === 4) {
+                        postToChatFrame(command[2], command[3]);
                     }
                 break;
 
@@ -276,6 +306,18 @@ class WsHandler {
                     }
                 break;
 
+                case "sit":
+                case "slot":
+                    if (command.length === 1) {
+                        this.sendToServer(kCommandStrJoinSlot, this.roomID);
+                    }
+                break;
+
+                case "stand":
+                case "unslot":
+                    this.sendToServer(kCommandStrLeaveSlot, this.roomID);
+                break;
+
                 case "leave":
                     this.sendToServer(kCommandStrLeaveRoom, this.roomID);
                 break;
@@ -305,30 +347,14 @@ function drawLine(ctx, start_x, start_y, end_x, end_y) {
     ctx.stroke();
 }
 
-function renderTTT(ctx, tttMeta) {
+function renderTTT(ctx, tttRoot) {
     let c = ctx.canvas;
     c.width = c.height = c.parentElement.clientWidth < c.parentElement.clientHeight ? c.parentElement.clientWidth : c.parentElement.clientHeight;
-    tttMeta.resize(c.width, c.height);
+    tttRoot.resize(c.width, c.height);
     ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
-    tttMeta.draw(ctx, ["black", "slategrey"], [5, 1]);
-    drawDebugBorders(ctx, tttMeta, true);
-    drawDebugBorders(ctx, tttMeta, false);
-}
-
-function drawDebugBorders(ctx, grid, padding) {
-    if (grid.sublevels > 0) {
-        grid.subGrid.forEach(e => {
-            e.forEach(f => {
-                drawDebugBorders(ctx, f, padding);
-            });
-        });
-    } else {
-        grid.subGrid.forEach(e => {
-            e.forEach(f => {
-                f.drawBorder(ctx, padding);
-            });
-        });
-    }
+    tttRoot.draw(ctx, ["black", "slategrey"], [5, 1]);
+    tttRoot.drawDebugBorders(ctx, true);
+    tttRoot.drawDebugBorders(ctx, false);
 }
 
 function postToChatFrame(user, msg) {
@@ -360,28 +386,28 @@ document.addEventListener("DOMContentLoaded", function(event) {
     let ctx = c.getContext("2d");
     const padding = 5;
 
-    let tttMeta = new TTTBoard(0, 0, c.width, c.height, 1, padding, padding, padding, padding);
+    let tttRoot = new TTTBoard(0, 0, c.width, c.height, 1, padding, padding, padding, padding);
 
     window.addEventListener("resize", () => {
-        renderTTT(ctx, tttMeta);
+        renderTTT(ctx, tttRoot);
     });
 
-    renderTTT(ctx, tttMeta);
+    renderTTT(ctx, tttRoot);
 
     let xo = true;
     c.addEventListener("click", function(event) {
-        let cell = tttMeta.getCell(event.pageX, event.pageY);
+        let cell = tttRoot.getCell(event.pageX, event.pageY);
         if (cell != null && cell.length >= 1) {
-            let grid = tttMeta;
+            let grid = tttRoot;
             //drill to the 2nd lowest layer
             for (let i = 0; i < cell.length-1; i++) {
                 let [col, row] = cell[i];
-                grid = tttMeta.subGrid[col][row];
+                grid = tttRoot.subGrid[col][row];
             }
             let [col, row] = cell[cell.length - 1];
             grid.state[col][row] = xo ? "X" : "O";
             xo = !xo;
-            renderTTT(ctx, tttMeta);
+            renderTTT(ctx, tttRoot);
         }
     });
 

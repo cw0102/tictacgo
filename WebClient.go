@@ -142,16 +142,15 @@ func (c *webClient) leaveRoom(roomID int) error {
 	return nil
 }
 
-func (c *webClient) joinRoomSlot(roomID, slotID int) error {
+func (c *webClient) joinRoomSlot(roomID int) (int, error) {
 	if _, ok := c.hub.rooms[roomID]; ok {
-		if err := c.hub.rooms[roomID].joinSlot(c, slotID); err != nil {
-			return err
+		slotID, err := c.hub.rooms[roomID].joinSlot(c)
+		if err != nil {
+			return -1, err
 		}
-	} else {
-		return errors.New("Failed to join slot: Room does not exist")
+		return slotID, nil
 	}
-
-	return nil
+	return -1, errors.New("Failed to join slot: Room does not exist")
 }
 
 func (c *webClient) leaveRoomSlot(roomID int) error {

@@ -32,28 +32,27 @@ func (r *room) leave(client *webClient) error {
 	return nil
 }
 
-func (r *room) joinSlot(client *webClient, slotID int) error {
+func (r *room) joinSlot(client *webClient) (int, error) {
 	if _, ok := r.members[client]; !ok {
-		return errors.New("Member not in room")
+		return -1, errors.New("Member not in room")
 	}
 
-	if slotID < 0 || slotID > 2 {
-		return errors.New("Invalid slotID")
-	}
-
-	if r.players[slotID] != nil {
-		return errors.New("Slot is not empty")
-	}
-
-	for _, p := range r.players {
+	slotID := -1
+	for i, p := range r.players {
 		if p == client {
-			return errors.New("User is already in a slot")
+			return -1, errors.New("User is already in a slot")
+		} else if p == nil && slotID < 0 {
+			slotID = i
 		}
+	}
+
+	if slotID < 0 {
+		return -1, errors.New("No available slot")
 	}
 
 	r.players[slotID] = client
 
-	return nil
+	return slotID, nil
 }
 
 func (r *room) leaveSlot(client *webClient) error {

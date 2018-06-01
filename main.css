@@ -29,6 +29,16 @@ html, body {
     font-size: 0.9em;
 }
 
+.slot-box {
+    margin-left: 10%;
+    margin-right: 10%;
+    margin-top: 10%;
+    border: 1px solid black;
+    border-radius: 30px;
+    min-height: 20%;
+    box-shadow: 3px 3px 3px slategray;
+}
+
 #chat-display {
     margin: 0px;
     height: 85%; 

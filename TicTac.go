@@ -4,12 +4,12 @@ import (
 	"errors"
 )
 
-type ticTacBasicBoard struct {
+type ticTacBoard struct {
 	squares [9]string
 }
 
 type ticTacMetaBoard struct {
-	boards [9]ticTacBasicBoard
+	boards [9]ticTacBoard
 }
 
 func (t *ticTacMetaBoard) play(token string, board, square int) error {
@@ -23,7 +23,7 @@ func (t *ticTacMetaBoard) play(token string, board, square int) error {
 	return nil
 }
 
-func (t *ticTacBasicBoard) getWinner() string {
+func (t *ticTacBoard) getWinner() string {
 	if t == nil {
 		return ""
 	}
