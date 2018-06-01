@@ -88,6 +88,7 @@ func getCommandResponse(cb commandBinding) (string, []string) {
 		log.Println(err)
 		return commandStrError, []string{err}
 	}
+
 	switch command[0] {
 	case commandStrMakeRoom: // Make Room
 		return parseCommandMakeRoom(cb.client, command)
@@ -120,9 +121,10 @@ func parseCommandMakeRoom(client *webClient, command []string) (string, []string
 	if len(command) != 1 {
 		return malformedCommand(commandStrMakeRoom)
 	}
+
 	roomID, err := client.hub.createRoom(client)
 	if err != nil {
-		return commandStrError, []string{commandStrMakeRoom, err.Error()}
+		return commandError(commandStrMakeRoom, err.Error())
 	}
 	return commandStrMakeRoom, []string{strconv.Itoa(roomID)}
 }
@@ -135,20 +137,18 @@ func parseCommandJoinRoom(client *webClient, command []string) (string, []string
 	if len(command) != 2 {
 		return malformedCommand(commandStrJoinRoom)
 	}
+
 	roomID, err := strconv.Atoi(command[1])
 	if err != nil {
-		log.Println(err)
-		return commandStrError, []string{commandStrJoinRoom, err.Error()}
+		return commandError(commandStrJoinRoom, err.Error())
 	}
 	if roomID == 0 {
-		err := "Invalid room ID"
-		log.Println(err)
-		return commandStrError, []string{commandStrJoinSlot, err}
+		return commandError(commandStrJoinSlot, "Invalid room ID")
 	}
 	if err = client.joinRoom(roomID); err != nil {
-		log.Println(err)
-		return commandStrError, []string{commandStrJoinRoom, err.Error()}
+		return commandError(commandStrJoinRoom, err.Error())
 	}
+
 	return commandStrJoinRoom, []string{strconv.Itoa(roomID)}
 }
 
@@ -160,6 +160,7 @@ func parseCommandJoinSlot(client *webClient, command []string) (string, []string
 	if len(command) != 2 {
 		return malformedCommand(commandStrJoinSlot)
 	}
+
 	roomID, err := strconv.Atoi(command[1])
 	if err != nil {
 		log.Println(err)
@@ -170,11 +171,18 @@ func parseCommandJoinSlot(client *webClient, command []string) (string, []string
 		log.Println(err)
 		return commandStrError, []string{commandStrJoinSlot, err}
 	}
-	slotID, err := client.joinRoomSlot(roomID)
-	if err != nil {
-		log.Println(err)
-		return commandStrError, []string{commandStrJoinSlot, err.Error()}
+
+	slotID := -1
+	err = nil
+	if _, ok := client.hub.rooms[roomID]; ok {
+		slotID, err = client.hub.rooms[roomID].joinSlot(client)
+		if err != nil {
+			return commandError(commandStrJoinSlot, err.Error())
+		}
+	} else {
+		return commandError(commandStrJoinSlot, "Failed to join slot: Room does not exist")
 	}
+
 	return commandStrJoinSlot, []string{strconv.Itoa(roomID), strconv.Itoa(slotID)}
 }
 
@@ -186,6 +194,7 @@ func parseCommandLeaveRoom(client *webClient, command []string) (string, []strin
 	if len(command) != 2 {
 		return malformedCommand(commandStrLeaveRoom)
 	}
+
 	roomID, roomIDErr := strconv.Atoi(command[1])
 	if roomIDErr != nil {
 		log.Println(roomIDErr)
@@ -196,10 +205,15 @@ func parseCommandLeaveRoom(client *webClient, command []string) (string, []strin
 		log.Println(err)
 		return commandStrError, []string{commandStrLeaveRoom, err}
 	}
-	if err := client.leaveRoom(roomID); err != nil {
-		log.Println(err)
-		return commandStrError, []string{commandStrLeaveRoom, err.Error()}
+
+	if _, ok := client.hub.rooms[roomID]; ok {
+		if err := client.hub.rooms[roomID].leave(client); err != nil {
+			return commandError(commandStrLeaveRoom, err.Error())
+		}
+	} else {
+		return commandError(commandStrLeaveRoom, "Failed to leave room: Does not exist")
 	}
+
 	return commandStrLeaveRoom, []string{strconv.Itoa(roomID)}
 }
 
@@ -211,6 +225,7 @@ func parseCommandLeaveSlot(client *webClient, command []string) (string, []strin
 	if len(command) != 2 {
 		return malformedCommand(commandStrLeaveSlot)
 	}
+
 	roomID, roomIDErr := strconv.Atoi(command[1])
 	if roomIDErr != nil {
 		log.Println(roomIDErr)
@@ -221,10 +236,15 @@ func parseCommandLeaveSlot(client *webClient, command []string) (string, []strin
 		log.Println(err)
 		return commandStrError, []string{commandStrLeaveSlot, err}
 	}
-	if err := client.leaveRoomSlot(roomID); err != nil {
-		log.Println(err)
-		return commandStrError, []string{commandStrLeaveSlot, err.Error()}
+
+	if _, ok := client.hub.rooms[roomID]; ok {
+		if err := client.hub.rooms[roomID].leaveSlot(client); err != nil {
+			return commandError(commandStrLeaveSlot, err.Error())
+		}
+	} else {
+		return commandError(commandStrLeaveSlot, "Failed to leave slot: Room does not exist")
 	}
+
 	return commandStrLeaveSlot, []string{strconv.Itoa(roomID)}
 }
 
@@ -236,6 +256,7 @@ func parseCommandPlay(client *webClient, command []string) (string, []string) {
 	if len(command) != 4 {
 		return malformedCommand(commandStrPlay)
 	}
+
 	return commandStrPlay, []string{"0", "0", "0"}
 }
 
@@ -247,6 +268,7 @@ func parseCommandChat(client *webClient, command []string) (string, []string) {
 	if len(command) != 3 {
 		return malformedCommand(commandStrChat)
 	}
+
 	roomID, roomIDErr := strconv.Atoi(command[1])
 	if roomIDErr != nil {
 		log.Println(roomIDErr)
@@ -257,6 +279,7 @@ func parseCommandChat(client *webClient, command []string) (string, []string) {
 		log.Println(err)
 		return commandStrError, []string{commandStrChat, err}
 	}
+
 	timestamp := strconv.FormatInt(time.Now().UnixNano()/1000000, 10) // Epoch timestamp in milliseconds
 	if err := client.sendChatMessage(roomID, timestamp, command[2]); err != nil {
 		log.Println(err)
@@ -273,6 +296,7 @@ func parseCommandState(client *webClient, command []string) (string, []string) {
 	if len(command) != 2 {
 		return malformedCommand(commandStrState)
 	}
+
 	return commandStrState, []string{}
 }
 
@@ -280,6 +304,11 @@ func malformedCommand(command string) (string, []string) {
 	err := fmt.Sprintf("%s command malformed", command)
 	log.Println(err)
 	return commandStrError, []string{command, err}
+}
+
+func commandError(command, message string) (string, []string) {
+	log.Printf("%s: %s\n", command, message)
+	return commandStrError, []string{command, message}
 }
 
 func (h *webHub) createRoom(client *webClient) (int, error) {
@@ -293,7 +322,8 @@ func (h *webHub) createRoom(client *webClient) (int, error) {
 		return 0, errors.New("Connected to too many rooms")
 	}
 	h.roomCount++
-	h.rooms[h.roomCount] = &room{h.roomCount, map[*webClient]struct{}{}, &ticTacMetaBoard{}, [2]*webClient{nil, nil}}
+	h.rooms[h.roomCount] = &room{h.roomCount, map[*webClient]struct{}{}, &ticTacMetaBoard{},
+		[2]*webClient{nil, nil}}
 	client.joinRoom(h.roomCount)
 	return h.roomCount, nil
 }

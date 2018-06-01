@@ -130,41 +130,6 @@ func (c *webClient) joinRoom(roomID int) error {
 	return nil
 }
 
-func (c *webClient) leaveRoom(roomID int) error {
-	if _, ok := c.hub.rooms[roomID]; ok {
-		if err := c.hub.rooms[roomID].leave(c); err != nil {
-			return err
-		}
-	} else {
-		return errors.New("Failed to leave room: Does not exist")
-	}
-
-	return nil
-}
-
-func (c *webClient) joinRoomSlot(roomID int) (int, error) {
-	if _, ok := c.hub.rooms[roomID]; ok {
-		slotID, err := c.hub.rooms[roomID].joinSlot(c)
-		if err != nil {
-			return -1, err
-		}
-		return slotID, nil
-	}
-	return -1, errors.New("Failed to join slot: Room does not exist")
-}
-
-func (c *webClient) leaveRoomSlot(roomID int) error {
-	if _, ok := c.hub.rooms[roomID]; ok {
-		if err := c.hub.rooms[roomID].leaveSlot(c); err != nil {
-			return err
-		}
-	} else {
-		return errors.New("Failed to leave slot: Room does not exist")
-	}
-
-	return nil
-}
-
 func (c *webClient) sendChatMessage(roomID int, timestamp string, msg string) error {
 	if _, ok := c.hub.rooms[roomID]; ok {
 		if err := c.hub.rooms[roomID].sendChatMessage(c, timestamp, msg); err != nil {
