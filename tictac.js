@@ -98,11 +98,11 @@ class TTTBoard extends Box {
     }
 
     resizeSubGrid() {
-        for (let i = 0; i < this.rows; i++) {
-            for (let j = 0; j < this.cols; j++) {
-                let grid = this.subGrid[i][j];
-                grid.x = this.x + (this.width * j / this.cols);
-                grid.y = this.y + (this.height * i / this.rows);
+        for (let row = 0; row < this.rows; row++) {
+            for (let col = 0; col < this.cols; col++) {
+                let grid = this.subGrid[row][col];
+                grid.x = this.x + (this.width * col / this.cols);
+                grid.y = this.y + (this.height * row / this.rows);
                 grid.width = this.width / this.cols;
                 grid.height = this.height / this.rows;
                 if (this.sublevels > 0) {
@@ -180,6 +180,19 @@ class TTTBoard extends Box {
         } 
     }
 
+    play(path, token) {
+        if (this.sublevels > path.length)
+        {
+            return;
+        }
+        let [row, col] = path[0];
+        if (this.sublevels > 0) {
+            this.subGrid[row][col].play(path.slice(1), token);
+        } else {
+            this.state[row][col] = token;
+        }
+    }
+
     drawDebugBorders(ctx, padding) {
         if (this.sublevels > 0) {
             this.subGrid.forEach(e => {
@@ -216,7 +229,7 @@ const kHelpText = "\n/make\tCreate a Room | "
 + "/sit\tTake a slot in the current room";
 
 class WsHandler {
-    constructor(){
+    constructor(ctx, tttBoard){ //passing these is a dirty hack for now
         this.roomID = -1;
         this.ws = new WebSocket("ws://" + location.hostname + (location.port ? ":" + location.port : "") + "/ws");
 
@@ -278,6 +291,18 @@ class WsHandler {
                         postToChatFrame(kSystemUserName, command[2]);
                     } else {
                         postToChatFrame(kSystemUserName, "Unknown error occured");
+                    }
+                break;
+
+                case kCommandStrPlay:
+                    if (command.length > 2 && command.length % 2 === 1) {
+                        let playPath = Array();
+                        for (let i = 3; i < command.length; i++) {
+                            let coord = command[i].split(",", 2);
+                            playPath.push(coord);
+                        }
+                        tttBoard.play(playPath, command[2]);
+                        renderTTT(ctx, tttBoard); // ewww
                     }
                 break;
             }
@@ -351,10 +376,10 @@ function renderTTT(ctx, tttRoot) {
     let c = ctx.canvas;
     c.width = c.height = c.parentElement.clientWidth < c.parentElement.clientHeight ? c.parentElement.clientWidth : c.parentElement.clientHeight;
     tttRoot.resize(c.width, c.height);
-    ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
+    ctx.clearRect(0, 0, c.width, c.height);
     tttRoot.draw(ctx, ["black", "slategrey"], [5, 1]);
-    tttRoot.drawDebugBorders(ctx, true);
-    tttRoot.drawDebugBorders(ctx, false);
+    //tttRoot.drawDebugBorders(ctx, true);
+    //tttRoot.drawDebugBorders(ctx, false);
 }
 
 function postToChatFrame(user, msg) {
@@ -394,24 +419,14 @@ document.addEventListener("DOMContentLoaded", function(event) {
 
     renderTTT(ctx, tttRoot);
 
-    let xo = true;
+    let ws = new WsHandler(ctx, tttRoot);
+
     c.addEventListener("click", function(event) {
         let cell = tttRoot.getCell(event.pageX, event.pageY);
         if (cell != null && cell.length >= 1) {
-            let grid = tttRoot;
-            //drill to the 2nd lowest layer
-            for (let i = 0; i < cell.length-1; i++) {
-                let [col, row] = cell[i];
-                grid = tttRoot.subGrid[col][row];
-            }
-            let [col, row] = cell[cell.length - 1];
-            grid.state[col][row] = xo ? "X" : "O";
-            xo = !xo;
-            renderTTT(ctx, tttRoot);
+            ws.sendToServer(kCommandStrPlay, ws.roomID, ...cell.map(v => v.join()));
         }
     });
-
-    let ws = new WsHandler();
 
     let chatEntry = document.getElementById("chat-entry");
     chatEntry.addEventListener("keypress", event => {

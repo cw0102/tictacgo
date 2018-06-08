@@ -229,15 +229,80 @@ func parseCommandLeaveSlot(client *webClient, command []string) (string, []strin
 }
 
 func parseCommandPlay(client *webClient, command []string) (string, []string) {
-	// Format: [PLAY:<room_id>:<boardid>:<squareid>]
+	// Format: [PLAY:<room_id>:<token>:<board_x>,<board_y>:<square_x>,<square_y>]
+	// Alternatively, for variable size boards:
+	// [PLAY:<room_id>:<token>:<board1_x>,<board1_y>:...<boardn_x>,<boardn_y>:<square_x>,<square_y>]
 	// Sends:
-	// on success: [PLAY:<room_id>:<boardid>:<squareid>] to all clients in room
+	// on success: [PLAY:<room_id>:<board_x>,<board_y>:<square_x>,<square_y>] to all clients in room
 	// on failure [ERRO:PLAY:<error_msg>]
 	if len(command) != 4 {
 		return malformedCommand(commandStrPlay)
 	}
 
-	return commandStrPlay, []string{"0", "0", "0"}
+	roomID, roomIDErr := parseRoomID(command[1])
+	if roomIDErr != nil {
+		return commandError(commandStrPlay, roomIDErr.Error())
+	}
+
+	var squares [][2]int
+	for i := 2; i < len(command); i++ {
+		cell := strings.Split(command[i], ",")
+
+		if len(cell) != 2 {
+			return malformedCommand(commandStrPlay)
+		}
+
+		x, err := strconv.Atoi(cell[0])
+		if err != nil {
+			return commandError(commandStrPlay, err.Error())
+		}
+		y, err := strconv.Atoi(cell[1])
+		if err != nil {
+			return commandError(commandStrPlay, err.Error())
+		}
+
+		squares = append(squares, [2]int{x, y})
+	}
+
+	var token string
+	r, ok := client.hub.rooms[roomID]
+	if ok {
+		if r.players[0] == client {
+			token = "X"
+		} else if r.players[1] == client {
+			token = "O"
+		} else {
+			return commandError(commandStrPlay, "Member is not in a slot")
+		}
+
+		if err := r.board.play(token,
+			squares[0][0],
+			squares[0][1],
+			squares[1][0],
+			squares[1][1]); err != nil {
+			return commandError(commandStrPlay, err.Error())
+		}
+	} else {
+		return commandError(commandStrPlay, "Failed to play: room does not exist")
+	}
+
+	var args []string
+	args = append(args, strconv.Itoa(roomID))
+	args = append(args, token)
+	for _, s := range squares {
+		pair := fmt.Sprint(strconv.Itoa(s[0]), ",", strconv.Itoa(s[1]))
+		args = append(args, pair)
+	}
+
+	//send to other room members
+	for m := range r.members {
+		if m != client {
+			m.sendToClient(commandStrPlay, args)
+		}
+	}
+
+	//reply to client
+	return commandStrPlay, args
 }
 
 func parseCommandChat(client *webClient, command []string) (string, []string) {
@@ -271,7 +336,7 @@ func parseCommandState(client *webClient, command []string) (string, []string) {
 		return malformedCommand(commandStrState)
 	}
 
-	return commandStrState, []string{}
+	return commandError(commandStrState, "Not Implemented")
 }
 
 func malformedCommand(command string) (string, []string) {
