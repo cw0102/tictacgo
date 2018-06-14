@@ -2,8 +2,10 @@ package main
 
 import (
 	"flag"
+	"fmt"
 	"log"
 	"net/http"
+	"strings"
 )
 
 var addr = flag.String("addr", ":8080", "http service address")
@@ -14,20 +16,20 @@ func serveHome(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if r.URL.Path == "/tictac.js" {
-		http.ServeFile(w, r, "tictac.js")
+	if strings.HasSuffix(r.URL.Path, ".js") {
+		http.ServeFile(w, r, fmt.Sprintf("webroot/js/%s", r.URL.Path))
 		return
 	}
 
 	if r.URL.Path == "/main.css" {
 		w.Header()["Content-Type"] = []string{"text/css"}
 
-		http.ServeFile(w, r, "main.css")
+		http.ServeFile(w, r, "webroot/main.css")
 		return
 	}
 
 	if r.URL.Path == "/" {
-		http.ServeFile(w, r, "main.html")
+		http.ServeFile(w, r, "webroot/main.html")
 		return
 	}
 
@@ -39,8 +41,6 @@ func main() {
 	hub := newWebHub()
 	go hub.run()
 	http.HandleFunc("/", serveHome)
-	http.HandleFunc("/tictac.js", serveHome)
-	http.HandleFunc("/main.css", serveHome)
 	http.HandleFunc("/ws", func(w http.ResponseWriter, r *http.Request) {
 		serveWs(hub, w, r)
 	})
