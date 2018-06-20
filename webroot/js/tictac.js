@@ -1,6 +1,6 @@
 "use strict";
 
-import { sanitizeText } from "./util.js";
+import { sanitizeText, appendChatElement } from "./util.js";
 import { TTTBoard } from "./TTTBoard.js";
 import { WsHandler } from "./WSHandler.js";
 import { TTTCanvas } from "./TTTCanvas.js";
@@ -13,20 +13,10 @@ import { TTTCanvas } from "./TTTCanvas.js";
  */
 function postToChatFrame(user, msg) {
     let chatFrame = document.getElementById("chat-display");
-    let newMessage = document.createElement("p");
-    newMessage.setAttribute("class", "message");
-    let newMessageUser = document.createElement("span");
-    newMessageUser.setAttribute("class", "username");
-    let newMessageUserText = document.createTextNode(user);
-    newMessageUser.appendChild(newMessageUserText);
-    newMessage.appendChild(newMessageUser);
-    let newMessageText = document.createTextNode(": " + msg);
-    newMessage.appendChild(newMessageText);
-    chatFrame.appendChild(newMessage);
-    chatFrame.scrollTop = chatFrame.scrollHeight;
+    appendChatElement(chatFrame, user, msg);
 }
 
-document.addEventListener("DOMContentLoaded", function(event) {
+document.addEventListener("DOMContentLoaded", () => {
     const padding = 5;
     let canvas = document.getElementById("main");
     let tttRoot = new TTTBoard(0, 0, canvas.width, canvas.height, 1, padding, padding, padding, padding);
@@ -41,7 +31,7 @@ document.addEventListener("DOMContentLoaded", function(event) {
 
     let ws = new WsHandler(tttCanvas, postToChatFrame);
 
-    canvas.addEventListener("click", function(event) {
+    canvas.addEventListener("click", event => {
         let cell = tttRoot.getCell(event.pageX, event.pageY);
         if (cell != null && cell.length >= 1) {
             ws.sendPlay(cell);

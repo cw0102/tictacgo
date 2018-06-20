@@ -1,3 +1,5 @@
+import { TTTCanvas } from "./TTTCanvas";
+
 const kCommandDelimeter = String.fromCharCode(0x1E);
 
 const kCommandStrMakeRoom  = "MKRM";
@@ -17,6 +19,12 @@ const kHelpText = "\n/make\tCreate a Room | "
 + "/sit\tTake a slot in the current room";
 
 export class WsHandler {
+    /**
+     * @constructor
+     * @param {TTTCanvas} tttCanvas The TTTCanvas to use for drawing/plays
+     * @param {Function} chatHandler A function that accepts 2 parameters for `username` 
+     * and `message` to handle output to the client.
+     */
     constructor(tttCanvas, chatHandler){
         this.roomID = -1;
         this.ws = new WebSocket("ws://" + location.hostname + (location.port ? ":" + location.port : "") + "/ws");

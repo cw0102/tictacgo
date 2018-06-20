@@ -30,3 +30,24 @@ export function sanitizeText(s) {
     s = s.replace(/\n\n+/g, "\n");
     return s;
 }
+
+/**
+ * Adds <p class="message"><span class="username">`user`</span>: `msg`</p>
+ * to the specified chatFrame.
+ * @param {Element} chatFrame The chatframe to append to
+ * @param {string} user The username
+ * @param {string} msg The message
+ */
+export function appendChatElement(chatFrame, user, msg) {
+    let newMessage = document.createElement("p");
+    newMessage.setAttribute("class", "message");
+    let newMessageUser = document.createElement("span");
+    newMessageUser.setAttribute("class", "username");
+    let newMessageUserText = document.createTextNode(user);
+    newMessageUser.appendChild(newMessageUserText);
+    newMessage.appendChild(newMessageUser);
+    let newMessageText = document.createTextNode(": " + msg);
+    newMessage.appendChild(newMessageText);
+    chatFrame.appendChild(newMessage);
+    chatFrame.scrollTop = chatFrame.scrollHeight;
+}
