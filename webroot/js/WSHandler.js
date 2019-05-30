@@ -1,4 +1,4 @@
-import { TTTCanvas } from "./TTTCanvas";
+import { TTTCanvas } from "./TTTCanvas.js";
 
 const kCommandDelimeter = String.fromCharCode(0x1E);
 

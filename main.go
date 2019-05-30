@@ -17,6 +17,8 @@ func serveHome(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if strings.HasSuffix(r.URL.Path, ".js") {
+		w.Header()["Content-Type"] = []string{"text/javascript"}
+		
 		http.ServeFile(w, r, fmt.Sprintf("webroot/js/%s", r.URL.Path))
 		return
 	}

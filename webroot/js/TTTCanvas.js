@@ -11,7 +11,5 @@ export class TTTCanvas {
         this.board.resize(this.canvas.width, this.canvas.height);
         this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
         this.board.draw(this.ctx, ["black", "slategrey"], [5, 1]);
-        //tttRoot.drawDebugBorders(this.ctx, true);
-        //tttRoot.drawDebugBorders(this.ctx, false);
     }
 }
